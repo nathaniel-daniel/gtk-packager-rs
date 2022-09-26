@@ -26,6 +26,9 @@ jobs:
         - name: Build
           run: cargo build --verbose
           
-#        - name: Package via `msys2-gtk-packager`
-#          shell: msys2 {0}
-#          run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
+        - name: Setup MSYS2
+          uses: msys2/setup-msys2@v2
+          
+        - name: Package via `msys2-gtk-packager`
+          shell: msys2 {0}
+          run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
