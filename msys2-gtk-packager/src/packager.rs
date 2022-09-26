@@ -31,6 +31,7 @@ bitflags::bitflags! {
 }
 
 /// A file to be added to the project.
+#[derive(Debug)]
 struct File {
     /// The file source.
     ///
@@ -92,11 +93,11 @@ impl Packager {
         for file in self.files.iter_mut() {
             if file.src.is_none() {
                 ensure!(file.dest.components().count() == 1);
-                file.src = Some(
-                    which(OsStr::new(&file.dest))
-                        .with_context(|| format!("failed to locate `{}`", file.dest.display()))?
-                        .with_context(|| format!("missing `{}`", file.dest.display()))?,
-                );
+                let src = which(OsStr::new(&file.dest))
+                    .with_context(|| format!("failed to locate `{}`", file.dest.display()))?
+                    .with_context(|| format!("missing `{}`", file.dest.display()))?;
+                eprintln!("Resolved `{}` to `{}`", file.dest.display(), src.display());
+                file.src = Some(src);
             }
         }
 
@@ -121,16 +122,21 @@ impl Packager {
                             format!("failed to get bin deps for `{}`", file_src.display())
                         })?
                         .into_iter()
-                        .filter(|name| !is_api_set_dll(name) && !is_system_dll(name))
+                        .filter(|name| !is_system_dll(name))
                     {
                         if !known_libraries.contains(OsStr::new(&name)) {
-                            unknown_libraries.insert(name.into());
+                            if is_api_set_dll(&name) {
+                                eprintln!("`{name}` is part of an api set, skipping...");
+                                known_libraries.insert(name.into());
+                            } else {
+                                unknown_libraries.insert(name.into());
+                            }
                         }
                     }
                 }
                 files_to_copy_offset = self.files.len().saturating_sub(1);
 
-                let has_unknown = unknown_libraries.is_empty();
+                let has_unknown = !unknown_libraries.is_empty();
                 for library in unknown_libraries.drain() {
                     let src = which(&library)
                         .with_context(|| {
@@ -143,7 +149,11 @@ impl Packager {
                         Path::new(&library).display(),
                         src.display()
                     );
-                    self.add_file(Some(src), library.into(), FileFlags::UPX | FileFlags::LIB);
+                    self.add_file(
+                        Some(src),
+                        library.into(),
+                        FileFlags::UPX | FileFlags::LIB | FileFlags::ADD_DEPS,
+                    );
                 }
 
                 if !has_unknown {
@@ -163,6 +173,12 @@ impl Packager {
                 "`{}` should be resolved, but it is not",
                 file.dest.display()
             ));
+            ensure!(
+                !PathBuf::from(OsString::from(file_src).to_ascii_lowercase())
+                    .starts_with("c:/windows"),
+                "`{}` is being added from a system directory",
+                file_src.display()
+            );
             let dest = self.out_dir.join(&file.dest);
 
             // Only attempt a copy if the destination is empty.
@@ -170,7 +186,9 @@ impl Packager {
             if !dest.exists() {
                 // Try to create parent dir.
                 if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent).context("failed to create parent dir")?;
+                    std::fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent dir at `{}`", parent.display())
+                    })?;
                 }
 
                 // We need to translate the path from MSYS2 to Windows.
@@ -179,7 +197,7 @@ impl Packager {
 
                 // Perform copy
                 std::fs::copy(&src, &dest).with_context(|| {
-                    format!("failed to copy {} to {}", src.display(), dest.display())
+                    format!("failed to copy `{}` to `{}`", src.display(), dest.display())
                 })?;
             }
         }

@@ -134,7 +134,7 @@ pub fn locate_msys2_installation() -> anyhow::Result<Utf8PathBuf> {
 /// Check if a given dll is a system dll, as in one that is provided by the OS.
 pub fn is_system_dll(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
-    let name = name.trim_end_matches(".dll");
+    let name = name.trim_end_matches(".dll").trim_end_matches(".drv");
 
     matches!(
         name,
@@ -148,6 +148,38 @@ pub fn is_system_dll(name: &str) -> bool {
             | "bcrypt"
             | "advapi32"
             | "shell32"
+            | "dnsapi"
+            | "gdi32"
+            | "imm32"
+            | "comdlg32"
+            | "opengl32"
+            | "shlwapi"
+            | "comctl32"
+            | "winspool"
+            | "version"
+            | "cfgmgr32"
+            | "kernelbase"
+            | "usp10"
+            | "msvfw32"
+            | "msimg32"
+            | "winmm"
+            | "rpcrt4"
+            | "userenv"
+            | "hid"
+            | "wsock32"
+            | "ntdll"
+            | "d3d11"
+            | "msvcrt"
+            | "gdiplus"
+            | "avicap32"
+            | "crypt32"
+            | "setupapi"
+            | "iphlpapi"
+            | "ws2_32"
+            | "win32u"
+            | "ncrypt"
+            | "dwmapi"
+            | "dxgi"
     )
 }
 
@@ -159,6 +191,7 @@ where
     let path = path.as_ref();
     let bytes = std::fs::read(&path).context("failed to read file")?;
     let pe = goblin::pe::PE::parse(&bytes).context("failed to parse pe file")?;
+
     Ok(pe.libraries.iter().map(|name| name.to_string()).collect())
 }
 

@@ -177,7 +177,11 @@ fn main() -> anyhow::Result<()> {
             // Copy extra libraries
             if !options.extra_libraries.is_empty() {
                 for library in options.extra_libraries.iter() {
-                    packager.add_file(None, library.into(), FileFlags::LIB | FileFlags::UPX);
+                    packager.add_file(
+                        None,
+                        library.into(),
+                        FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
+                    );
                 }
             }
 
