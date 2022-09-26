@@ -89,6 +89,9 @@ struct PackageOptions {
         description = "the path to a theme to package"
     )]
     themes: Vec<String>,
+
+    #[argh(switch, description = "whether to upx")]
+    upx: bool,
 }
 
 fn build(target: &str, profile: &str) -> anyhow::Result<()> {
@@ -163,6 +166,7 @@ fn main() -> anyhow::Result<()> {
             let mut packager = Packager::new(package_dir.clone().into());
             packager
                 .resolve_unknown_libraries(true)
+                .upx(options.upx)
                 .add_file(
                     Some(src_bin_path.clone().into()),
                     bin_name.into(),

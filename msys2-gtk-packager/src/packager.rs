@@ -1,6 +1,7 @@
 use crate::util::get_dll_imports;
 use crate::util::is_api_set_dll;
 use crate::util::is_system_dll;
+use crate::util::upx;
 use anyhow::ensure;
 use anyhow::Context;
 use std::collections::HashSet;
@@ -56,6 +57,7 @@ pub struct Packager {
     files: Vec<File>,
 
     resolve_unknown_libraries: bool,
+    upx: bool,
 }
 
 impl Packager {
@@ -65,13 +67,13 @@ impl Packager {
             out_dir,
             files: Vec::with_capacity(256),
             resolve_unknown_libraries: true,
+            upx: false,
         }
     }
 
     /// Add a file to be packaged.
     pub fn add_file(&mut self, src: Option<PathBuf>, dest: PathBuf, flags: FileFlags) -> &mut Self {
         self.files.push(File { src, dest, flags });
-
         self
     }
 
@@ -80,7 +82,12 @@ impl Packager {
     /// Defaults to true.
     pub fn resolve_unknown_libraries(&mut self, resolve_unknown_libraries: bool) -> &mut Self {
         self.resolve_unknown_libraries = resolve_unknown_libraries;
+        self
+    }
 
+    /// Whether to use upx
+    pub fn upx(&mut self, upx: bool) -> &mut Self {
+        self.upx = upx;
         self
     }
 
@@ -199,6 +206,14 @@ impl Packager {
                 std::fs::copy(&src, &dest).with_context(|| {
                     format!("failed to copy `{}` to `{}`", src.display(), dest.display())
                 })?;
+
+                // If this file is a library or exe and the user asked us to upx it, upx it.
+                if self.upx
+                    && file.flags.contains(FileFlags::UPX)
+                    && (file.flags.contains(FileFlags::LIB) || file.flags.contains(FileFlags::EXE))
+                {
+                    upx(&dest).with_context(|| format!("failed to upx `{}`", dest.display()))?;
+                }
             }
         }
 
