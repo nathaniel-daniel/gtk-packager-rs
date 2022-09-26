@@ -1,34 +1,38 @@
 name: CI
 
 on:
-    push:
-        branches: [ "master" ]
-    pull_request:
-        branches: [ "master" ]
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
 jobs:
-    build-windows:
-        runs-on: windows-latest
-        steps:
-        - uses: actions/checkout@v3
-        
-        - name: Cache
-          uses: actions/cache@v3
-          with:
-            path: |
-                ~/.cargo/bin/
-                ~/.cargo/registry/index/
-                ~/.cargo/registry/cache/
-                ~/.cargo/git/db/
-                target/
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-            
-        - name: Build
-          run: cargo build --verbose
-          
-        - name: Setup MSYS2
-          uses: msys2/setup-msys2@v2
-          
-        - name: Package via `msys2-gtk-packager`
-          shell: msys2 {0}
-          run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          path-type: inherit
+
+      - name: Package via `msys2-gtk-packager`
+        shell: msys2 {0}
+        run: |
+          set MSYSTEM=UCRT64
+          cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
