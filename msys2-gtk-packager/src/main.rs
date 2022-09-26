@@ -1,8 +1,10 @@
+mod commands;
 mod packager;
 mod util;
 
 use crate::packager::FileFlags;
 use crate::packager::Packager;
+use crate::util::locate_msys2_installation;
 use crate::util::msys2_to_windows;
 use anyhow::bail;
 use anyhow::ensure;
@@ -12,7 +14,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
- use walkdir::WalkDir;
+use walkdir::WalkDir;
 
 #[derive(Debug, argh::FromArgs)]
 #[argh(description = "A tool to aide in building GTK-rs programs for Windows, backed by MSYS2")]
@@ -123,6 +125,9 @@ fn main() -> anyhow::Result<()> {
             let metadata = cargo_metadata::MetadataCommand::new()
                 .exec()
                 .context("failed to get cargo metadata")?;
+
+            let msys2_installation_path =
+                locate_msys2_installation().context("failed to locate MSYS2 installation")?;
 
             // Validate `options.bin`
             let bin_is_valid = metadata

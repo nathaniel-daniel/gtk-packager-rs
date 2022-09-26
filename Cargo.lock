@@ -119,6 +119,7 @@ dependencies = [
  "anyhow",
  "argh",
  "bitflags",
+ "camino",
  "cargo_metadata",
  "goblin",
  "walkdir",

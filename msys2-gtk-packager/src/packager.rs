@@ -1,5 +1,6 @@
-use crate::util::LddIterLibraryDependencies;
-use crate::util::LibraryDependency;
+use crate::util::get_dll_imports;
+use crate::util::is_api_set_dll;
+use crate::util::is_system_dll;
 use anyhow::ensure;
 use anyhow::Context;
 use std::collections::HashSet;
@@ -115,15 +116,15 @@ impl Packager {
                     known_libraries.insert(file_name.into());
                     unknown_libraries.remove(file_name);
 
-                    for dep in get_bin_dependencies(file_src).with_context(|| {
-                        format!("failed to get bin deps for `{}`", file_src.display())
-                    })? {
-                        if dep.is_system_library() {
-                            continue;
-                        }
-
-                        if !known_libraries.contains(OsStr::new(&*dep.name)) {
-                            unknown_libraries.insert(String::from(dep.name).into());
+                    for name in get_dll_imports(file_src)
+                        .with_context(|| {
+                            format!("failed to get bin deps for `{}`", file_src.display())
+                        })?
+                        .into_iter()
+                        .filter(|name| !is_api_set_dll(name) && !is_system_dll(name))
+                    {
+                        if !known_libraries.contains(OsStr::new(&name)) {
+                            unknown_libraries.insert(name.into());
                         }
                     }
                 }
@@ -186,18 +187,3 @@ impl Packager {
         Ok(())
     }
 }
-
-fn get_bin_dependencies<P>(path: P) -> anyhow::Result<Vec<LibraryDependency>>
-where
-    P: AsRef<Path>,
-{
-    let mut dependencies = Vec::with_capacity(256);
-    let iter = LddIterLibraryDependencies::new(path.as_ref())?;
-    for library in iter {
-        let library = library?;
-        dependencies.push(library);
-    }
-    Ok(dependencies)
-}
-
-// goblin::pe::PE
