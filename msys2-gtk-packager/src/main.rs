@@ -5,11 +5,10 @@ mod util;
 use crate::packager::FileFlags;
 use crate::packager::Packager;
 use crate::util::locate_msys2_installation;
-use crate::util::msys2_to_windows;
+use crate::util::target_triple_to_msys2_environment;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
-use msys2::Msys2Environment;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -93,57 +92,6 @@ struct PackageOptions {
 
     #[argh(switch, description = "whether to upx")]
     upx: bool,
-}
-
-/// Convert a target triple into an MSYS2 environment.
-///
-/// # Returns
-/// Returns an MSYS2 environment.
-/// A None value should be taken to mean that the target does not work with MSYS2,
-/// however it my be just a flaw in this function.
-fn target_triple_to_msys2_environment(triple: &str) -> Option<Msys2Environment> {
-    // Keep in sync with https://github.com/rust-lang/rust/tree/4d44e09cb1db2788f59159c4b9055e339ed2181d/compiler/rustc_target/src/spec.
-    // Just CTRL+F "windows" and ensure all targets present there are present here.
-    // Make sure you get the crt right. Look at the link flags to figure it out.
-    //
-    // I tried to parse these targets but these aren't really "triples".
-    // There's no spec or documentation, and people do whatever they want.
-    //
-    // Generally, -gnullvm targets use UCRT, while gnu use MSVCRT.
-    //
-    // We cannot support -msvc targets as msys2 provides the wrong library type.
-    //
-    // We cannot provide i586 as MSYS2 only provides i686.
-    //
-    // We cannot provide thumb archs as MSYS2 does not provide them.
-    //
-    // We cannot provide i686 UWP as it is UCRT and MSYS2 only provides x64 UCRT.
-    //
-    // Clang will always use UCRT.
-    match triple {
-        "aarch64-pc-windows-gnullvm" => Some(Msys2Environment::ClangArm64),
-        "aarch64-pc-windows-msvc" => None,
-        "aarch64-uwp-windows-msvc" => None,
-
-        "i586-pc-windows-msvc" => None,
-
-        "i686-pc-windows-gnu" => Some(Msys2Environment::Mingw32),
-        "i686-pc-windows-msvc" => None,
-
-        "i686-uwp-windows-gnu" => None,
-        "i686-uwp-windows-msvc" => None,
-
-        "thumbv7a-pc-windows-msvc" => None,
-        "thumbv7a-uwp-windows-msvc" => None,
-
-        "x86_64-pc-windows-gnu" => Some(Msys2Environment::Mingw64),
-        "x86_64-pc-windows-gnullvm" => Some(Msys2Environment::Clang64),
-        "x86_64-pc-windows-msvc" => None,
-
-        "x86_64-uwp-windows-gnu" => Some(Msys2Environment::Ucrt64),
-        "x86_64-uwp-windows-msvc" => None,
-        _ => None,
-    }
 }
 
 fn build(target: &str, profile: &str) -> anyhow::Result<()> {
@@ -232,7 +180,7 @@ fn main() -> anyhow::Result<()> {
                 .resolve_unknown_libraries(true)
                 .upx(options.upx)
                 .add_file(
-                    Some(src_bin_path.clone().into()),
+                    Some(src_bin_path.into()),
                     bin_name.into(),
                     FileFlags::EXE | FileFlags::UPX | FileFlags::ADD_DEPS,
                 )
@@ -243,105 +191,33 @@ fn main() -> anyhow::Result<()> {
                 );
 
             // Copy extra libraries
-            if !options.extra_libraries.is_empty() {
-                for library in options.extra_libraries.iter() {
-                    packager.add_file(
-                        None,
-                        library.into(),
-                        FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
-                    );
-                }
+            for library in options.extra_libraries.iter() {
+                packager.add_file(
+                    None,
+                    library.into(),
+                    FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
+                );
             }
 
-            let gtk_lib_dir = {
-                let output = Command::new("pkg-config")
-                    .arg("gtk4")
-                    .arg("--libs-only-L")
-                    .output()
-                    .context("failed to run pkg-config")?;
-                ensure!(
-                    output.status.success(),
-                    "failed to locate `gtk4` via pkg-config"
-                );
-                let stdout = std::str::from_utf8(&output.stdout)
-                    .context("pkg-config output is not utf8")?
-                    .trim()
-                    .trim_start_matches("-L");
+            let msys2_environment_path = packager.get_msys2_environment_path();
+            packager.add_file(
+                Some(
+                    msys2_environment_path
+                        .join_os("lib/gtk-4.0/4.0.0/media/libmedia-gstreamer.dll"),
+                ), // TODO: Allow customization based on gtk target and media backend
+                "lib/gtk-4.0/4.0.0/media/libmedia-gstreamer.dll".into(),
+                FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
+            );
 
-                PathBuf::from(stdout)
-            };
-
-            let gstreamer_lib_dir = {
-                // Locate gstreamer lib dir
-                let output = Command::new("pkg-config")
-                    .arg("gstreamer-1.0")
-                    .arg("--libs-only-L")
-                    .output()
-                    .context("failed to run pkg-config")?;
-                ensure!(
-                    output.status.success(),
-                    "failed to locate `gstreamer-1.0` via pkg-config"
-                );
-                let stdout = std::str::from_utf8(&output.stdout)
-                    .context("pkg-config output is not utf8")?
-                    .trim()
-                    .trim_start_matches("-L");
-
-                PathBuf::from(stdout)
-            };
-
-            let gstreamer_plugins_dir = {
-                // Locate gstreamer lib dir
-                let output = Command::new("pkg-config")
-                    .arg("gstreamer-plugins-base-1.0")
-                    .arg("--libs-only-L")
-                    .output()
-                    .context("failed to run pkg-config")?;
-                ensure!(
-                    output.status.success(),
-                    "failed to locate `gstreamer-plugins-base-1.0` via pkg-config"
-                );
-                let stdout = std::str::from_utf8(&output.stdout)
-                    .context("pkg-config output is not utf8")?
-                    .trim()
-                    .trim_start_matches("-L");
-
-                PathBuf::from(stdout)
-            };
-
-            packager
-                .add_file(
-                    Some(gtk_lib_dir.join("gtk-4.0/4.0.0/media/libmedia-gstreamer.dll")), // TODO: Allow customization based on gtk target
-                    "lib/gtk-4.0/4.0.0/media/libmedia-gstreamer.dll".into(),
-                    FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
-                )
-                .add_file(
-                    Some(gstreamer_lib_dir.join("gstreamer-1.0/libgstcoreelements.dll")),
-                    "lib/gstreamer-1.0/libgstcoreelements.dll".into(),
-                    FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
-                );
+            packager.add_file(
+                Some(msys2_environment_path.join_os("lib/gstreamer-1.0/libgstcoreelements.dll")),
+                "lib/gstreamer-1.0/libgstcoreelements.dll".into(),
+                FileFlags::LIB | FileFlags::UPX | FileFlags::ADD_DEPS,
+            );
 
             // libgstplayback.dll
             {
-                // Locate gstreamer lib dir
-                let output = Command::new("pkg-config")
-                    .arg("gstreamer-plugins-base-1.0")
-                    .arg("--libs-only-L")
-                    .output()
-                    .context("failed to run pkg-config")?;
-                ensure!(
-                    output.status.success(),
-                    "failed to locate `gstreamer-plugins-base-1.0` via pkg-config"
-                );
-                let stdout = std::str::from_utf8(&output.stdout)
-                    .context("pkg-config output is not utf8")?
-                    .trim()
-                    .trim_start_matches("-L");
-
-                let src = PathBuf::from(msys2_to_windows(
-                    Path::new(stdout).join("gstreamer-1.0/libgstplayback.dll"),
-                )?);
-
+                let src = msys2_environment_path.join_os("lib/gstreamer-1.0/libgstplayback.dll");
                 packager.add_file(
                     Some(src),
                     "lib/gstreamer-1.0/libgstplayback.dll".into(),
@@ -389,7 +265,12 @@ fn main() -> anyhow::Result<()> {
                 for plugin in extra_plugins {
                     let dest = gstreamer.join(plugin);
                     packager.add_file(
-                        Some(gstreamer_plugins_dir.join("gstreamer-1.0").join(plugin)),
+                        Some(
+                            msys2_environment_path
+                                .join("lib")
+                                .join_os("gstreamer-1.0")
+                                .join(plugin),
+                        ),
                         dest,
                         FileFlags::UPX | FileFlags::LIB | FileFlags::ADD_DEPS,
                     );
