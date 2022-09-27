@@ -13,8 +13,6 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::util::msys2_to_windows;
-
 bitflags::bitflags! {
     /// File data
     pub struct FileFlags: u32 {
@@ -101,6 +99,12 @@ impl Packager {
         self
     }
 
+    /// Get the MSYS2 environment path
+    pub fn get_msys2_environment_path(&self) -> Utf8PathBuf {
+        self.msys2_installation_path
+            .join(self.msys2_environment.get_prefix().trim_start_matches('/'))
+    }
+
     /// Lookup a library with the given packager settings.
     ///
     /// # Result
@@ -108,9 +112,7 @@ impl Packager {
     fn lookup_msys2_file(&self, name: &OsStr) -> anyhow::Result<Option<PathBuf>> {
         const PATH_EXT: &[&str] = &["dll", "exe"];
 
-        let lookup_dir = self
-            .msys2_installation_path
-            .join(self.msys2_environment.get_prefix().trim_start_matches('/'));
+        let lookup_dir = self.get_msys2_environment_path();
 
         for path in ["lib", "bin"] {
             let path = lookup_dir.join(path);
@@ -190,10 +192,12 @@ impl Packager {
                 for file in self.files[files_to_copy_offset..].iter().filter(|file| {
                     file.flags.contains(FileFlags::LIB) || file.flags.contains(FileFlags::EXE)
                 }) {
-                    let file_src = file.src.as_ref().expect(&format!(
-                        "`{}` should be resolved, but it is not",
-                        file.dest.display()
-                    ));
+                    let file_src = file.src.as_ref().unwrap_or_else(|| {
+                        panic!(
+                            "`{}` should be resolved, but it is not",
+                            file.dest.display()
+                        )
+                    });
                     let file_name = file_src.file_name().context("missing file name")?;
                     known_libraries.insert(file_name.into());
                     unknown_libraries.remove(file_name);
@@ -251,10 +255,12 @@ impl Packager {
                 file.dest.display()
             );
 
-            let file_src = file.src.as_ref().expect(&format!(
-                "`{}` should be resolved, but it is not",
-                file.dest.display()
-            ));
+            let file_src = file.src.as_ref().unwrap_or_else(|| {
+                panic!(
+                    "`{}` should be resolved, but it is not",
+                    file.dest.display()
+                )
+            });
             ensure!(
                 !PathBuf::from(OsString::from(file_src).to_ascii_lowercase())
                     .starts_with("c:/windows"),
@@ -273,13 +279,13 @@ impl Packager {
                     })?;
                 }
 
-                // We need to translate the path from MSYS2 to Windows.
-                let src =
-                    PathBuf::from(msys2_to_windows(file_src).context("failed to convert path")?);
-
                 // Perform copy
-                std::fs::copy(&src, &dest).with_context(|| {
-                    format!("failed to copy `{}` to `{}`", src.display(), dest.display())
+                std::fs::copy(&file_src, &dest).with_context(|| {
+                    format!(
+                        "failed to copy `{}` to `{}`",
+                        file_src.display(),
+                        dest.display()
+                    )
                 })?;
 
                 // If this file is a library or exe and the user asked us to upx it, upx it.

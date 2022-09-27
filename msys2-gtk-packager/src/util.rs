@@ -1,7 +1,7 @@
 use anyhow::bail;
-use anyhow::ensure;
 use anyhow::Context;
 use camino::Utf8PathBuf;
+use msys2::Msys2Environment;
 use std::path::Path;
 use std::process::Command;
 
@@ -21,29 +21,6 @@ where
     }
 
     Ok(())
-}
-
-/// Convert an msys2 style path to a Windows path
-pub fn msys2_to_windows<P>(path: P) -> anyhow::Result<String>
-where
-    P: AsRef<Path>,
-{
-    let output = Command::new("cygpath")
-        .arg("-wa")
-        .arg(path.as_ref())
-        .output()
-        .context("failed to run cygpath")?;
-
-    ensure!(output.status.success());
-    let mut path = String::from_utf8(output.stdout).context("cygpath output was not utf8")?;
-    if path.ends_with("\r\n") {
-        path.pop();
-        path.pop();
-    } else if path.ends_with('\n') {
-        path.pop();
-    }
-
-    Ok(path)
 }
 
 /// Locate a MSYS2 installation.
@@ -193,5 +170,56 @@ pub fn is_api_set_dll(name: &str) -> bool {
         true
     } else {
         false
+    }
+}
+
+/// Convert a target triple into an MSYS2 environment.
+///
+/// # Returns
+/// Returns an MSYS2 environment.
+/// A None value should be taken to mean that the target does not work with MSYS2,
+/// however it my be just a flaw in this function.
+pub fn target_triple_to_msys2_environment(triple: &str) -> Option<Msys2Environment> {
+    // Keep in sync with https://github.com/rust-lang/rust/tree/4d44e09cb1db2788f59159c4b9055e339ed2181d/compiler/rustc_target/src/spec.
+    // Just CTRL+F "windows" and ensure all targets present there are present here.
+    // Make sure you get the crt right. Look at the link flags to figure it out.
+    //
+    // I tried to parse these targets but these aren't really "triples".
+    // There's no spec or documentation, and people do whatever they want.
+    //
+    // Generally, -gnullvm targets use UCRT, while gnu use MSVCRT.
+    //
+    // We cannot support -msvc targets as msys2 provides the wrong library type.
+    //
+    // We cannot provide i586 as MSYS2 only provides i686.
+    //
+    // We cannot provide thumb archs as MSYS2 does not provide them.
+    //
+    // We cannot provide i686 UWP as it is UCRT and MSYS2 only provides x64 UCRT.
+    //
+    // Clang will always use UCRT.
+    match triple {
+        "aarch64-pc-windows-gnullvm" => Some(Msys2Environment::ClangArm64),
+        "aarch64-pc-windows-msvc" => None,
+        "aarch64-uwp-windows-msvc" => None,
+
+        "i586-pc-windows-msvc" => None,
+
+        "i686-pc-windows-gnu" => Some(Msys2Environment::Mingw32),
+        "i686-pc-windows-msvc" => None,
+
+        "i686-uwp-windows-gnu" => None,
+        "i686-uwp-windows-msvc" => None,
+
+        "thumbv7a-pc-windows-msvc" => None,
+        "thumbv7a-uwp-windows-msvc" => None,
+
+        "x86_64-pc-windows-gnu" => Some(Msys2Environment::Mingw64),
+        "x86_64-pc-windows-gnullvm" => Some(Msys2Environment::Clang64),
+        "x86_64-pc-windows-msvc" => None,
+
+        "x86_64-uwp-windows-gnu" => Some(Msys2Environment::Ucrt64),
+        "x86_64-uwp-windows-msvc" => None,
+        _ => None,
     }
 }
