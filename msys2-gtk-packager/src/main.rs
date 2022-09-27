@@ -3,6 +3,7 @@ mod packager;
 mod util;
 
 use crate::packager::FileFlags;
+use crate::packager::Msys2Environment;
 use crate::packager::Packager;
 use crate::util::locate_msys2_installation;
 use crate::util::msys2_to_windows;
@@ -94,6 +95,57 @@ struct PackageOptions {
     upx: bool,
 }
 
+/// Convert a target triple into an MSYS2 environment.
+///
+/// # Returns
+/// Returns an MSYS2 environment.
+/// A None value should be taken to mean that the target does not work with MSYS2,
+/// however it my be just a flaw in this function.
+fn target_triple_to_msys2_environment(triple: &str) -> Option<Msys2Environment> {
+    // Keep in sync with https://github.com/rust-lang/rust/tree/4d44e09cb1db2788f59159c4b9055e339ed2181d/compiler/rustc_target/src/spec.
+    // Just CTRL+F "windows" and ensure all targets present there are present here.
+    // Make sure you get the crt right. Look at the link flags to figure it out.
+    //
+    // I tried to parse these targets but these aren't really "triples".
+    // There's no spec or documentation, and people do whatever they want.
+    //
+    // Generally, -gnullvm targets use UCRT, while gnu use MSVCRT.
+    //
+    // We cannot support -msvc targets as msys2 provides the wrong library type.
+    //
+    // We cannot provide i586 as MSYS2 only provides i686.
+    //
+    // We cannot provide thumb archs as MSYS2 does not provide them.
+    //
+    // We cannot provide i686 UWP as it is UCRT and MSYS2 only provides x64 UCRT.
+    //
+    // Clang will always use UCRT.
+    match triple {
+        "aarch64-pc-windows-gnullvm" => Some(Msys2Environment::ClangArm64),
+        "aarch64-pc-windows-msvc" => None,
+        "aarch64-uwp-windows-msvc" => None,
+
+        "i586-pc-windows-msvc" => None,
+
+        "i686-pc-windows-gnu" => Some(Msys2Environment::Mingw32),
+        "i686-pc-windows-msvc" => None,
+
+        "i686-uwp-windows-gnu" => None,
+        "i686-uwp-windows-msvc" => None,
+
+        "thumbv7a-pc-windows-msvc" => None,
+        "thumbv7a-uwp-windows-msvc" => None,
+
+        "x86_64-pc-windows-gnu" => Some(Msys2Environment::Mingw64),
+        "x86_64-pc-windows-gnullvm" => Some(Msys2Environment::Clang64),
+        "x86_64-pc-windows-msvc" => None,
+
+        "x86_64-uwp-windows-gnu" => Some(Msys2Environment::Ucrt64),
+        "x86_64-uwp-windows-msvc" => None,
+        _ => None,
+    }
+}
+
 fn build(target: &str, profile: &str) -> anyhow::Result<()> {
     let mut cargo_build_command = Command::new("cargo");
     cargo_build_command
@@ -121,6 +173,14 @@ fn main() -> anyhow::Result<()> {
             build(options.target.as_str(), options.profile.as_str())?;
         }
         Subcommand::Package(options) => {
+            let msys2_environment = target_triple_to_msys2_environment(&options.target)
+                .with_context(|| {
+                    format!(
+                        "failed to translate `{}` into a MSYS2 environment",
+                        options.target
+                    )
+                })?;
+
             if !options.no_build {
                 build(options.target.as_str(), options.profile.as_str())?;
             }
@@ -150,7 +210,7 @@ fn main() -> anyhow::Result<()> {
             let profile_dir = metadata.target_directory.join(options.target.as_str());
             let bin_dir = profile_dir.join(profile);
 
-            // TODO: Allow user to customize name/autogenerate?
+            // TODO: autogenerate
             let package_dir = profile_dir.join(env!("CARGO_CRATE_NAME")).join(options.bin);
             match std::fs::remove_dir_all(&package_dir) {
                 Ok(()) => {}
@@ -163,7 +223,11 @@ fn main() -> anyhow::Result<()> {
             }
 
             let src_bin_path = bin_dir.join(&bin_name);
-            let mut packager = Packager::new(package_dir.clone().into());
+            let mut packager = Packager::new(
+                msys2_installation_path,
+                msys2_environment,
+                package_dir.clone().into(),
+            );
             packager
                 .resolve_unknown_libraries(true)
                 .upx(options.upx)
