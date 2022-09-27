@@ -1,31 +1,42 @@
 name: CI
 
 on:
-    push:
-        branches: [ "master" ]
-    pull_request:
-        branches: [ "master" ]
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
 jobs:
-    build-windows:
-        runs-on: windows-latest
-        steps:
-        - uses: actions/checkout@v3
-        
-        - name: Cache
-          uses: actions/cache@v3
-          with:
-            path: |
-                ~/.cargo/bin/
-                ~/.cargo/registry/index/
-                ~/.cargo/registry/cache/
-                ~/.cargo/git/db/
-                target/
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-            
-        - name: Build
-          run: cargo build --verbose
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gst-plugins-base mingw-w64-ucrt-x86_64-gst-plugins-good mingw-w64-ucrt-x86_64-gst-plugins-bad
           
-#        - name: Package via `msys2-gtk-packager`
-#          shell: msys2 {0}
-#          run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
+      - name: Install Rust GNU Windows Target
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Package via `msys2-gtk-packager`
+        shell: msys2 {0}
+        env:
+          MSYSTEM: UCRT64
+        run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager

@@ -195,7 +195,10 @@ fn main() -> anyhow::Result<()> {
                     .arg("--libs-only-L")
                     .output()
                     .context("failed to run pkg-config")?;
-                ensure!(output.status.success());
+                ensure!(
+                    output.status.success(),
+                    "failed to locate `gtk4` via pkg-config"
+                );
                 let stdout = std::str::from_utf8(&output.stdout)
                     .context("pkg-config output is not utf8")?
                     .trim()
@@ -211,7 +214,10 @@ fn main() -> anyhow::Result<()> {
                     .arg("--libs-only-L")
                     .output()
                     .context("failed to run pkg-config")?;
-                ensure!(output.status.success());
+                ensure!(
+                    output.status.success(),
+                    "failed to locate `gstreamer-1.0` via pkg-config"
+                );
                 let stdout = std::str::from_utf8(&output.stdout)
                     .context("pkg-config output is not utf8")?
                     .trim()
@@ -227,7 +233,10 @@ fn main() -> anyhow::Result<()> {
                     .arg("--libs-only-L")
                     .output()
                     .context("failed to run pkg-config")?;
-                ensure!(output.status.success());
+                ensure!(
+                    output.status.success(),
+                    "failed to locate `gstreamer-plugins-base-1.0` via pkg-config"
+                );
                 let stdout = std::str::from_utf8(&output.stdout)
                     .context("pkg-config output is not utf8")?
                     .trim()
@@ -256,7 +265,10 @@ fn main() -> anyhow::Result<()> {
                     .arg("--libs-only-L")
                     .output()
                     .context("failed to run pkg-config")?;
-                ensure!(output.status.success());
+                ensure!(
+                    output.status.success(),
+                    "failed to locate `gstreamer-plugins-base-1.0` via pkg-config"
+                );
                 let stdout = std::str::from_utf8(&output.stdout)
                     .context("pkg-config output is not utf8")?
                     .trim()
