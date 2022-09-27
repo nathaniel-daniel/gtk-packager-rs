@@ -38,5 +38,5 @@ jobs:
       - name: Package via `msys2-gtk-packager`
         shell: msys2 {0}
         env:
-          MSYSTEM: UCRT64
+          MSYSTEM: MINGW64
         run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
