@@ -2,8 +2,11 @@ use crate::util::get_dll_imports;
 use crate::util::is_api_set_dll;
 use crate::util::is_system_dll;
 use crate::util::upx;
+use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
+use camino::Utf8PathBuf;
+use msys2::Msys2Environment;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -11,8 +14,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::util::msys2_to_windows;
-// TODO: Avoid which, use custom lookup impl based on msys2 env type.
-use crate::util::which;
 
 bitflags::bitflags! {
     /// File data
@@ -52,7 +53,9 @@ struct File {
 
 /// A packager for a GTK-rs project, backed by MSYS2.
 pub struct Packager {
+    msys2_installation_path: Utf8PathBuf,
     out_dir: PathBuf,
+    msys2_environment: Msys2Environment,
 
     files: Vec<File>,
 
@@ -62,9 +65,16 @@ pub struct Packager {
 
 impl Packager {
     /// Make a new [`Packager`].
-    pub fn new(out_dir: PathBuf) -> Self {
+    pub fn new(
+        msys2_installation_path: Utf8PathBuf,
+        msys2_environment: Msys2Environment,
+        out_dir: PathBuf,
+    ) -> Self {
         Self {
+            msys2_installation_path,
+            msys2_environment,
             out_dir,
+
             files: Vec::with_capacity(256),
             resolve_unknown_libraries: true,
             upx: false,
@@ -91,20 +101,84 @@ impl Packager {
         self
     }
 
+    /// Lookup a library with the given packager settings.
+    ///
+    /// # Result
+    /// Returns an error if the library could not be found of if the lookup failed.
+    fn lookup_msys2_file(&self, name: &OsStr) -> anyhow::Result<Option<PathBuf>> {
+        const PATH_EXT: &[&str] = &["dll", "exe"];
+
+        let lookup_dir = self
+            .msys2_installation_path
+            .join(self.msys2_environment.get_prefix().trim_start_matches('/'));
+
+        for path in ["lib", "bin"] {
+            let path = lookup_dir.join(path);
+            let path = path.join_os(name);
+
+            if path
+                .try_exists()
+                .context("failed to check if file exists")?
+            {
+                return Ok(Some(path));
+            }
+
+            for ext in PATH_EXT {
+                // Append .ext to path.
+                // Path cannot do this but OsString can.
+                let path = {
+                    let mut path = OsString::from(&path);
+                    path.push(".");
+                    path.push(ext);
+
+                    PathBuf::from(path)
+                };
+
+                if path
+                    .try_exists()
+                    .context("failed to check if file exists")?
+                {
+                    return Ok(Some(path));
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
     // TODO: Consider adding multithreading option.
     /// Try to package
     pub fn package(&mut self) -> anyhow::Result<()> {
         // Create base dir
         std::fs::create_dir_all(&self.out_dir).context("failed to create out dir")?;
 
-        for file in self.files.iter_mut() {
+        // Lookup missing
+        for i in 0..self.files.len() {
+            let file = &self.files[i];
+
             if file.src.is_none() {
-                ensure!(file.dest.components().count() == 1);
-                let src = which(OsStr::new(&file.dest))
-                    .with_context(|| format!("failed to locate `{}`", file.dest.display()))?
-                    .with_context(|| format!("missing `{}`", file.dest.display()))?;
+                let mut components_iter = file.dest.components();
+                let component = components_iter
+                    .next()
+                    .with_context(|| format!("`{}` has no components", file.dest.display()))?;
+                ensure!(
+                    components_iter.next().is_none(),
+                    "`{}` is longer than 1 component",
+                    file.dest.display()
+                );
+
+                let name = match component {
+                    std::path::Component::Normal(name) => name,
+                    _ => bail!("`{}` is not a valid dll name", file.dest.display()),
+                };
+
+                let src = self
+                    .lookup_msys2_file(name)
+                    .with_context(|| format!("failed to locate {:?}", name))?
+                    .with_context(|| format!("missing {:?}", name))?;
+
                 eprintln!("Resolved `{}` to `{}`", file.dest.display(), src.display());
-                file.src = Some(src);
+                self.files[i].src = Some(src);
             }
         }
 
@@ -145,7 +219,8 @@ impl Packager {
 
                 let has_unknown = !unknown_libraries.is_empty();
                 for library in unknown_libraries.drain() {
-                    let src = which(&library)
+                    let src = self
+                        .lookup_msys2_file(&library)
                         .with_context(|| {
                             format!("failed to locate `{}`", Path::new(&library).display())
                         })?
