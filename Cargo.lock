@@ -113,6 +113,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "msys2"
+version = "0.0.0"
+
+[[package]]
 name = "msys2-gtk-packager"
 version = "0.0.0"
 dependencies = [
@@ -122,6 +126,7 @@ dependencies = [
  "camino",
  "cargo_metadata",
  "goblin",
+ "msys2",
  "walkdir",
 ]
 

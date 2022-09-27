@@ -3,13 +3,13 @@ mod packager;
 mod util;
 
 use crate::packager::FileFlags;
-use crate::packager::Msys2Environment;
 use crate::packager::Packager;
 use crate::util::locate_msys2_installation;
 use crate::util::msys2_to_windows;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
+use msys2::Msys2Environment;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
