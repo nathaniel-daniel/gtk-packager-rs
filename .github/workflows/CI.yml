@@ -30,7 +30,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           path-type: inherit
-          install: mingw-w64-ucrt-x86_64-pkg-config mingw-w64-ucrt-x86_64-gtk4
+          install: mingw-w64-ucrt-x86_64-pkg-config mingw-w64-x86_64-pkgconf mingw-w64-x86_64-gcc
           
       - name: Install Rust GNU Windows Target
         run: rustup target add x86_64-pc-windows-gnu
