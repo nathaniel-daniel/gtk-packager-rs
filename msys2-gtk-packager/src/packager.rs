@@ -14,8 +14,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::util::msys2_to_windows;
-// TODO: Avoid which, use custom lookup impl based on msys2 env type.
-use crate::util::which;
 
 bitflags::bitflags! {
     /// File data
@@ -221,7 +219,8 @@ impl Packager {
 
                 let has_unknown = !unknown_libraries.is_empty();
                 for library in unknown_libraries.drain() {
-                    let src = which(&library)
+                    let src = self
+                        .lookup_msys2_file(&library)
                         .with_context(|| {
                             format!("failed to locate `{}`", Path::new(&library).display())
                         })?
