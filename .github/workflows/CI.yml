@@ -42,4 +42,4 @@ jobs:
         shell: msys2 {0}
         env:
           MSYSTEM: MINGW64
-        run: cargo run -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
+        run: cargo run --bin msys2-gtk-packager -- package --target x86_64-pc-windows-gnu --bin msys2-gtk-packager
