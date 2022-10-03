@@ -2,6 +2,7 @@
 members = [
     "msys2-gtk-packager",
     "msys2",
+    "msys2-packager",
 ]
 
 [profile.release]

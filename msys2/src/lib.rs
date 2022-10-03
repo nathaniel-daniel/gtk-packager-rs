@@ -1,3 +1,15 @@
+/// An error that may occur while parsing a [`Msys2Environment`] from a string.
+#[derive(Debug)]
+pub struct Msys2EnvironmentFromStrError(String);
+
+impl std::fmt::Display for Msys2EnvironmentFromStrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "`{}` is not a valid MSYS2 environment", self.0)
+    }
+}
+
+impl std::error::Error for Msys2EnvironmentFromStrError {}
+
 /// Possible MSYS2 environments
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Msys2Environment {
@@ -43,6 +55,25 @@ impl Msys2Environment {
             Self::Msys | Self::Mingw64 | Self::Ucrt64 | Self::Clang64 => Msys2Arch::X86_64,
             Self::Mingw32 | Self::Clang32 => Msys2Arch::I686,
             Self::ClangArm64 => Msys2Arch::AArch64,
+        }
+    }
+}
+
+impl std::str::FromStr for Msys2Environment {
+    type Err = Msys2EnvironmentFromStrError;
+    
+    fn from_str(raw_input: &str) -> Result<Self, Self::Err> {
+        let input = raw_input.to_lowercase();
+        
+        match input.as_str() {
+            "msys" => Ok(Self::Msys),
+            "mingw64" => Ok(Self::Mingw64),
+            "ucrt64" => Ok(Self::Ucrt64),
+            "clang64" => Ok(Self::Clang64),
+            "mingw32" => Ok(Self::Mingw32),
+            "clang32" => Ok(Self::Clang32),
+            "clangarm64" => Ok(Self::ClangArm64),
+            _ => Err(Msys2EnvironmentFromStrError(raw_input.into())),
         }
     }
 }

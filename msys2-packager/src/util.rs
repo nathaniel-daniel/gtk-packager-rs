@@ -112,6 +112,9 @@ pub fn is_system_dll(name: &str) -> bool {
             | "ncrypt"
             | "dwmapi"
             | "dxgi"
+            | "uxtheme"
+            | "mpr"
+            | "netapi32"
     )
 }
 
