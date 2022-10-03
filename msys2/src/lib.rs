@@ -61,10 +61,10 @@ impl Msys2Environment {
 
 impl std::str::FromStr for Msys2Environment {
     type Err = Msys2EnvironmentFromStrError;
-    
+
     fn from_str(raw_input: &str) -> Result<Self, Self::Err> {
         let input = raw_input.to_lowercase();
-        
+
         match input.as_str() {
             "msys" => Ok(Self::Msys),
             "mingw64" => Ok(Self::Mingw64),

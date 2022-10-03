@@ -77,7 +77,7 @@ impl std::str::FromStr for FileOption {
 struct Options {
     #[argh(option, long = "file", description = "files to add to the package")]
     files: Vec<FileOption>,
-    
+
     #[argh(switch, description = "whether to upx the binary")]
     upx: bool,
 }
