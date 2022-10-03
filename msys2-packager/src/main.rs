@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use msys2_packager::packager::FileFlags;
 use msys2_packager::packager::Packager;
 use msys2_packager::util::locate_msys2_installation;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 struct FileOption {
@@ -21,7 +22,7 @@ impl std::str::FromStr for FileOption {
         let mut dest = None;
         let mut flags = FileFlags::empty();
 
-        for part in input.split("|") {
+        for part in input.split('|') {
             let (key, value) = part
                 .split_once('=')
                 .with_context(|| format!("missing key/value pair in `{}`", part))?;
@@ -80,6 +81,9 @@ struct Options {
 
     #[argh(switch, description = "whether to upx the binary")]
     upx: bool,
+
+    #[argh(option, long = "out", short = 'o', description = "the output dir")]
+    out: PathBuf,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -91,7 +95,7 @@ fn main() -> anyhow::Result<()> {
         .parse()
         .context("invalid MSYSTEM var")?;
 
-    let mut packager = Packager::new(msys2_installation_location, msys2_environment, "out".into());
+    let mut packager = Packager::new(msys2_installation_location, msys2_environment, options.out);
     packager.upx(options.upx);
     for file_option in options.files {
         packager.add_file(
