@@ -122,12 +122,23 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "argh",
- "bitflags",
  "camino",
  "cargo_metadata",
+ "msys2",
+ "msys2-packager",
+ "walkdir",
+]
+
+[[package]]
+name = "msys2-packager"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "argh",
+ "bitflags",
+ "camino",
  "goblin",
  "msys2",
- "walkdir",
 ]
 
 [[package]]
