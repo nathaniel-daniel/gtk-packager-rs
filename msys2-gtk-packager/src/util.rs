@@ -15,7 +15,8 @@ pub fn build(
     msys2_environment: Msys2Environment,
     run: bool,
 ) -> anyhow::Result<()> {
-    let env_sysroot = msys2_installation_path.join(msys2_environment.get_prefix().trim_start_matches("/"));
+    let env_sysroot =
+        msys2_installation_path.join(msys2_environment.get_prefix().trim_start_matches('/'));
 
     CargoBuild::new()
         .run(run)
@@ -25,8 +26,13 @@ pub fn build(
         .env(
             "PATH".into(), // We use MSYS2's pkg-config
             std::env::join_paths(
-                std::iter::once(msys2_installation_path.join(&env_sysroot).join("bin").into())
-                    .chain(std::env::var_os("PATH").into_iter()),
+                std::iter::once(
+                    msys2_installation_path
+                        .join(&env_sysroot)
+                        .join("bin")
+                        .into(),
+                )
+                .chain(std::env::var_os("PATH").into_iter()),
             )?,
         )
         .env(
