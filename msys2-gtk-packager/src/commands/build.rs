@@ -14,10 +14,18 @@ pub struct Options {
         default = "String::from(\"dev\")"
     )]
     pub profile: String,
+
+    #[argh(option, long = "bin", description = "the binary name")]
+    pub bin: String,
 }
 
 /// Exec the build subcommand
 pub fn exec(options: Options) -> anyhow::Result<()> {
-    crate::util::build(options.target.as_str(), options.profile.as_str(), false)?;
+    crate::util::build(
+        options.target.as_str(),
+        options.profile.as_str(),
+        options.bin.as_str(),
+        false,
+    )?;
     Ok(())
 }

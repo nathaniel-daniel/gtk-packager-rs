@@ -67,10 +67,6 @@ pub fn exec(options: Options) -> anyhow::Result<()> {
             )
         })?;
 
-    if !options.no_build {
-        crate::util::build(options.target.as_str(), options.profile.as_str(), false)?;
-    }
-
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
         .context("failed to get cargo metadata")?;
@@ -91,6 +87,15 @@ pub fn exec(options: Options) -> anyhow::Result<()> {
         .any(|target| target.name == options.bin);
     ensure!(bin_is_valid, "`{}` is not a valid bin", options.bin);
     let bin_name = format!("{}.exe", options.bin);
+
+    if !options.no_build {
+        crate::util::build(
+            options.target.as_str(),
+            options.profile.as_str(),
+            options.bin.as_str(),
+            false,
+        )?;
+    }
 
     let profile = options.profile;
     let profile_dir = metadata.target_directory.join(options.target.as_str());
