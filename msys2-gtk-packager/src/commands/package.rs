@@ -3,7 +3,6 @@ use anyhow::ensure;
 use anyhow::Context;
 use msys2_packager::packager::FileFlags;
 use msys2_packager::packager::Packager;
-use msys2_packager::util::locate_msys2_installation;
 use msys2_packager::util::target_triple_to_msys2_environment;
 use std::fs::File;
 use std::io::Write;
@@ -58,7 +57,7 @@ pub struct Options {
 }
 
 /// Run the `package` subcommand.
-pub fn exec(options: Options) -> anyhow::Result<()> {
+pub fn exec(ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     let msys2_environment =
         target_triple_to_msys2_environment(&options.target).with_context(|| {
             format!(
@@ -70,9 +69,6 @@ pub fn exec(options: Options) -> anyhow::Result<()> {
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
         .context("failed to get cargo metadata")?;
-
-    let msys2_installation_path =
-        locate_msys2_installation().context("failed to locate MSYS2 installation")?;
 
     // Validate `options.bin`
     let bin_is_valid = metadata
@@ -115,7 +111,7 @@ pub fn exec(options: Options) -> anyhow::Result<()> {
 
     let src_bin_path = bin_dir.join(&bin_name);
     let mut packager = Packager::new(
-        msys2_installation_path,
+        ctx.msys2_installation_path,
         msys2_environment,
         package_dir.clone().into(),
     );
