@@ -1,9 +1,5 @@
 #[derive(Debug, argh::FromArgs)]
-#[argh(
-    subcommand,
-    name = "build",
-    description = "Build the GTK-rs application"
-)]
+#[argh(subcommand, name = "run", description = "Run the GTK-rs application")]
 pub struct Options {
     #[argh(option, description = "the target triple")]
     pub target: String,
@@ -16,8 +12,8 @@ pub struct Options {
     pub profile: String,
 }
 
-/// Exec the build subcommand
+/// Run the `run` subcommand
 pub fn exec(options: Options) -> anyhow::Result<()> {
-    crate::util::build(options.target.as_str(), options.profile.as_str(), false)?;
+    crate::util::build(options.target.as_str(), options.profile.as_str(), true)?;
     Ok(())
 }

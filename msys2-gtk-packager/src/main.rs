@@ -25,22 +25,8 @@ struct Options {
 #[argh(subcommand)]
 enum Subcommand {
     Build(crate::commands::build::Options),
-    Run(RunOptions),
+    Run(crate::commands::run::Options),
     Package(PackageOptions),
-}
-
-#[derive(Debug, argh::FromArgs)]
-#[argh(subcommand, name = "run", description = "Run the GTK-rs application")]
-pub struct RunOptions {
-    #[argh(option, description = "the target triple")]
-    pub target: String,
-
-    #[argh(
-        option,
-        description = "the build profile",
-        default = "String::from(\"dev\")"
-    )]
-    pub profile: String,
 }
 
 #[derive(Debug, argh::FromArgs)]
@@ -96,7 +82,7 @@ fn main() -> anyhow::Result<()> {
             crate::commands::build::exec(options)?;
         }
         Subcommand::Run(options) => {
-            crate::util::build(options.target.as_str(), options.profile.as_str(), true)?;
+            crate::commands::run::exec(options)?;
         }
         Subcommand::Package(options) => {
             let msys2_environment = target_triple_to_msys2_environment(&options.target)
