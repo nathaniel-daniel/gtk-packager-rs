@@ -1,4 +1,5 @@
 mod commands;
+mod util;
 
 use anyhow::bail;
 use anyhow::ensure;
@@ -11,7 +12,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 use walkdir::WalkDir;
 
 #[derive(Debug, argh::FromArgs)]
@@ -24,26 +24,23 @@ struct Options {
 #[derive(Debug, argh::FromArgs)]
 #[argh(subcommand)]
 enum Subcommand {
-    Build(BuildOptions),
+    Build(crate::commands::build::Options),
+    Run(RunOptions),
     Package(PackageOptions),
 }
 
 #[derive(Debug, argh::FromArgs)]
-#[argh(
-    subcommand,
-    name = "build",
-    description = "Build the GTK-rs application"
-)]
-struct BuildOptions {
+#[argh(subcommand, name = "run", description = "Run the GTK-rs application")]
+pub struct RunOptions {
     #[argh(option, description = "the target triple")]
-    target: String,
+    pub target: String,
 
     #[argh(
         option,
         description = "the build profile",
         default = "String::from(\"dev\")"
     )]
-    profile: String,
+    pub profile: String,
 }
 
 #[derive(Debug, argh::FromArgs)]
@@ -92,31 +89,14 @@ struct PackageOptions {
     upx: bool,
 }
 
-fn build(target: &str, profile: &str) -> anyhow::Result<()> {
-    let mut cargo_build_command = Command::new("cargo");
-    cargo_build_command
-        .arg("build")
-        .args(&["--target", target])
-        .args(&["--profile", profile])
-        .env("PKG_CONFIG_SYSROOT_DIR", "/"); // MSYS2's pkg-config does not support "cross" builds like the one we get by LITERALLY SPECIFYING ITSELF.
-
-    let cargo_build_status = cargo_build_command
-        .status()
-        .context("failed to run `cargo build`")?;
-
-    ensure!(
-        cargo_build_status.success(),
-        "cargo build exited with a nonzero exit code"
-    );
-
-    Ok(())
-}
-
 fn main() -> anyhow::Result<()> {
     let options: Options = argh::from_env();
     match options.subcommand {
         Subcommand::Build(options) => {
-            build(options.target.as_str(), options.profile.as_str())?;
+            crate::commands::build::exec(options)?;
+        }
+        Subcommand::Run(options) => {
+            crate::util::build(options.target.as_str(), options.profile.as_str(), true)?;
         }
         Subcommand::Package(options) => {
             let msys2_environment = target_triple_to_msys2_environment(&options.target)
@@ -128,7 +108,7 @@ fn main() -> anyhow::Result<()> {
                 })?;
 
             if !options.no_build {
-                build(options.target.as_str(), options.profile.as_str())?;
+                crate::util::build(options.target.as_str(), options.profile.as_str(), false)?;
             }
 
             let metadata = cargo_metadata::MetadataCommand::new()
