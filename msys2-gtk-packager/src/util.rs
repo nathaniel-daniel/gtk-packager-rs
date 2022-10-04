@@ -1,29 +1,46 @@
 use anyhow::ensure;
 use anyhow::Context;
+use camino::Utf8Path;
+use msys2::Msys2Environment;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::process::Command;
 
 /// Run a build
-pub fn build(target: &str, profile: &str, bin: &str, run: bool) -> anyhow::Result<()> {
-    let mut command = CargoBuild::new()
+pub fn build(
+    target: &str,
+    profile: &str,
+    bin: &str,
+    msys2_installation_path: &Utf8Path,
+    msys2_environment: Msys2Environment,
+    run: bool,
+) -> anyhow::Result<()> {
+    let env_sysroot = msys2_installation_path.join(msys2_environment.get_prefix().trim_start_matches("/"));
+
+    CargoBuild::new()
         .run(run)
         .target(target.into())
         .profile(profile.into())
         .bin(bin.into())
-        .env("PKG_CONFIG_SYSROOT_DIR".into(), "/".into()) // MSYS2's pkg-config does not support "cross" builds like the one we get by LITERALLY SPECIFYING ITSELF.
-        .build_command()?;
-
-    let status = command.status().context("failed to run `cargo build`")?;
-
-    ensure!(
-        status.success(),
-        "`{:?}` exited with nonzero exit code `{}`",
-        command,
-        status,
-    );
-
-    Ok(())
+        .env(
+            "PATH".into(), // We use MSYS2's pkg-config
+            std::env::join_paths(
+                std::iter::once(msys2_installation_path.join(&env_sysroot).join("bin").into())
+                    .chain(std::env::var_os("PATH").into_iter()),
+            )?,
+        )
+        .env(
+            "PKG_CONFIG_SYSROOT_DIR".into(),
+            msys2_installation_path.into(),
+        )
+        .env(
+            "PKG_CONFIG_LIBDIR".into(),
+            msys2_installation_path
+                .join(env_sysroot)
+                .join("lib/pkgconfig")
+                .into(),
+        )
+        .exec()
 }
 
 /// A builder to build a cargo build command
@@ -110,5 +127,22 @@ impl CargoBuild {
         }
 
         Ok(command)
+    }
+
+    /// Run this command.
+    pub fn exec(&self) -> anyhow::Result<()> {
+        let mut command = self.build_command()?;
+        let status = command
+            .status()
+            .with_context(|| format!("failed to run `{:?}`", command))?;
+
+        ensure!(
+            status.success(),
+            "`{:?}` exited with nonzero exit code `{}`",
+            command,
+            status,
+        );
+
+        Ok(())
     }
 }

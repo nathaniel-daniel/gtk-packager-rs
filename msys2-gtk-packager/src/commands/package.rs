@@ -3,7 +3,6 @@ use anyhow::ensure;
 use anyhow::Context;
 use msys2_packager::packager::FileFlags;
 use msys2_packager::packager::Packager;
-use msys2_packager::util::target_triple_to_msys2_environment;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -57,14 +56,8 @@ pub struct Options {
 }
 
 /// Run the `package` subcommand.
-pub fn exec(ctx: crate::Context, options: Options) -> anyhow::Result<()> {
-    let msys2_environment =
-        target_triple_to_msys2_environment(&options.target).with_context(|| {
-            format!(
-                "failed to translate `{}` into a MSYS2 environment",
-                options.target
-            )
-        })?;
+pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
+    ctx.set_target(options.target.clone())?;
 
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
@@ -89,6 +82,8 @@ pub fn exec(ctx: crate::Context, options: Options) -> anyhow::Result<()> {
             options.target.as_str(),
             options.profile.as_str(),
             options.bin.as_str(),
+            &ctx.msys2_installation_path,
+            ctx.msys2_environment.context("missing msys2 environment")?,
             false,
         )?;
     }
@@ -112,7 +107,7 @@ pub fn exec(ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     let src_bin_path = bin_dir.join(&bin_name);
     let mut packager = Packager::new(
         ctx.msys2_installation_path,
-        msys2_environment,
+        ctx.msys2_environment.context("missing msys2 environment")?,
         package_dir.clone().into(),
     );
     packager

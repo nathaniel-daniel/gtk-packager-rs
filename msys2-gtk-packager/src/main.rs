@@ -3,6 +3,7 @@ mod util;
 
 use anyhow::Context as _;
 use camino::Utf8PathBuf;
+use msys2::Msys2Environment;
 
 #[derive(Debug, argh::FromArgs)]
 #[argh(description = "A tool to aide in building GTK-rs programs for Windows, backed by MSYS2")]
@@ -23,6 +24,9 @@ enum Subcommand {
 pub struct Context {
     /// The msys2 installation path
     pub msys2_installation_path: Utf8PathBuf,
+
+    /// The msys2 environment
+    pub msys2_environment: Option<Msys2Environment>,
 }
 
 impl Context {
@@ -33,7 +37,21 @@ impl Context {
 
         Ok(Self {
             msys2_installation_path,
+            msys2_environment: None,
         })
+    }
+
+    /// Set the target triple.
+    ///
+    /// This will update associated data, like the msys2 environment.
+    pub fn set_target(&mut self, target: String) -> anyhow::Result<()> {
+        let msys2_environment = msys2_packager::util::target_triple_to_msys2_environment(&target)
+            .with_context(|| {
+            format!("failed to translate `{}` into a MSYS2 environment", target)
+        })?;
+
+        self.msys2_environment = Some(msys2_environment);
+        Ok(())
     }
 }
 
@@ -43,10 +61,10 @@ fn main() -> anyhow::Result<()> {
 
     match options.subcommand {
         Subcommand::Build(options) => {
-            crate::commands::build::exec(options)?;
+            crate::commands::build::exec(ctx, options)?;
         }
         Subcommand::Run(options) => {
-            crate::commands::run::exec(options)?;
+            crate::commands::run::exec(ctx, options)?;
         }
         Subcommand::Package(options) => {
             crate::commands::package::exec(ctx, options)?;
