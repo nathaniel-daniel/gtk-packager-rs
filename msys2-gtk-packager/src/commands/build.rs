@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 #[derive(Debug, argh::FromArgs)]
 #[argh(
     subcommand,
@@ -21,17 +19,9 @@ pub struct Options {
     pub bin: String,
 }
 
-/// Exec the build subcommand
+/// Exec the `build` subcommand.
 pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
-
-    crate::util::build(
-        options.target.as_str(),
-        options.profile.as_str(),
-        options.bin.as_str(),
-        &ctx.msys2_installation_path,
-        ctx.msys2_environment.context("missing msys2 environment")?,
-        false,
-    )?;
+    ctx.run_cargo_build(options.profile.as_str(), options.bin.as_str(), None)?;
     Ok(())
 }

@@ -1,58 +1,15 @@
 use anyhow::ensure;
 use anyhow::Context;
-use camino::Utf8Path;
-use msys2::Msys2Environment;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::process::Command;
 
-/// Run a build
-pub fn build(
-    target: &str,
-    profile: &str,
-    bin: &str,
-    msys2_installation_path: &Utf8Path,
-    msys2_environment: Msys2Environment,
-    run: bool,
-) -> anyhow::Result<()> {
-    let env_sysroot =
-        msys2_installation_path.join(msys2_environment.get_prefix().trim_start_matches('/'));
-
-    CargoBuild::new()
-        .run(run)
-        .target(target.into())
-        .profile(profile.into())
-        .bin(bin.into())
-        .env(
-            "PATH".into(), // We use MSYS2's pkg-config
-            std::env::join_paths(
-                std::iter::once(
-                    msys2_installation_path
-                        .join(&env_sysroot)
-                        .join("bin")
-                        .into(),
-                )
-                .chain(std::env::var_os("PATH").into_iter()),
-            )?,
-        )
-        .env(
-            "PKG_CONFIG_SYSROOT_DIR".into(),
-            msys2_installation_path.into(),
-        )
-        .env(
-            "PKG_CONFIG_LIBDIR".into(),
-            msys2_installation_path
-                .join(env_sysroot)
-                .join("lib/pkgconfig")
-                .into(),
-        )
-        .exec()
-}
-
 /// A builder to build a cargo build command
 pub struct CargoBuild {
-    /// If `true`, `cargo run` should be used instead of `cargo build`.
-    pub run: bool,
+    /// The `build` cargo subcommand command to run.
+    ///
+    /// This exists so that users can run things like `clippy`
+    pub build: Option<String>,
 
     /// The target triple
     pub target: Option<String>,
@@ -71,7 +28,7 @@ impl CargoBuild {
     /// Make a new [`CargoBuild`].
     pub fn new() -> Self {
         Self {
-            run: false,
+            build: None,
             target: None,
             profile: None,
             bin: None,
@@ -79,9 +36,9 @@ impl CargoBuild {
         }
     }
 
-    /// Set whether `cargo run` should be used.
-    pub fn run(&mut self, run: bool) -> &mut Self {
-        self.run = run;
+    /// Set the `build` command to use.
+    pub fn build(&mut self, build: String) -> &mut Self {
+        self.build = Some(build);
         self
     }
 
@@ -111,14 +68,14 @@ impl CargoBuild {
 
     /// Build this command.
     pub fn build_command(&self) -> anyhow::Result<Command> {
-        let run = self.run;
+        let build = self.build.as_deref();
         let target = self.target.as_deref();
         let profile = self.profile.as_deref();
         let bin = self.bin.as_deref();
         let envs = &self.envs;
 
         let mut command = Command::new("cargo");
-        command.arg(if run { "run" } else { "build" }).envs(envs);
+        command.arg(build.unwrap_or("build")).envs(envs);
 
         if let Some(target) = target {
             command.args(&["--target", target]);

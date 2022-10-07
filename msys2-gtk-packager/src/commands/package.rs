@@ -78,14 +78,7 @@ pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     let bin_name = format!("{}.exe", options.bin);
 
     if !options.no_build {
-        crate::util::build(
-            options.target.as_str(),
-            options.profile.as_str(),
-            options.bin.as_str(),
-            &ctx.msys2_installation_path,
-            ctx.msys2_environment.context("missing msys2 environment")?,
-            false,
-        )?;
+        ctx.run_cargo_build(options.profile.as_str(), options.bin.as_str(), None)?;
     }
 
     let profile = options.profile;

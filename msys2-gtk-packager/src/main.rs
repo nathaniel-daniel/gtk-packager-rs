@@ -27,6 +27,9 @@ pub struct Context {
 
     /// The msys2 environment
     pub msys2_environment: Option<Msys2Environment>,
+
+    /// The target triple
+    pub target: Option<String>,
 }
 
 impl Context {
@@ -38,6 +41,7 @@ impl Context {
         Ok(Self {
             msys2_installation_path,
             msys2_environment: None,
+            target: None,
         })
     }
 
@@ -50,8 +54,59 @@ impl Context {
             format!("failed to translate `{}` into a MSYS2 environment", target)
         })?;
 
+        self.target = Some(target);
         self.msys2_environment = Some(msys2_environment);
         Ok(())
+    }
+
+    /// Run a cargo build
+    pub fn run_cargo_build(
+        &self,
+        profile: &str,
+        bin: &str,
+        build: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let msys2_installation_path = &self.msys2_installation_path;
+        let msys2_environment = self
+            .msys2_environment
+            .context("missing `msys2_environment`")?;
+        let target = self.target.as_deref().context("missing `target`")?;
+
+        let rel_prefix = msys2_environment.get_prefix().trim_start_matches('/');
+        let env_sysroot = msys2_installation_path.join(rel_prefix);
+
+        let mut cargo_build = crate::util::CargoBuild::new();
+        if let Some(build) = build {
+            cargo_build.build(build.into());
+        }
+        cargo_build
+            .target(target.into())
+            .profile(profile.into())
+            .bin(bin.into())
+            .env(
+                "PATH".into(), // We use MSYS2's pkg-config
+                std::env::join_paths(
+                    std::iter::once(
+                        msys2_installation_path
+                            .join(&env_sysroot)
+                            .join("bin")
+                            .into(),
+                    )
+                    .chain(std::env::var_os("PATH").into_iter()),
+                )?,
+            )
+            .env(
+                "PKG_CONFIG_SYSROOT_DIR".into(),
+                msys2_installation_path.into(),
+            )
+            .env(
+                "PKG_CONFIG_LIBDIR".into(),
+                msys2_installation_path
+                    .join(env_sysroot)
+                    .join("lib/pkgconfig")
+                    .into(),
+            )
+            .exec()
     }
 }
 
