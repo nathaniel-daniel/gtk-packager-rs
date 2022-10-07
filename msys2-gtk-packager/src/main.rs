@@ -1,6 +1,7 @@
 mod commands;
 mod util;
 
+use anyhow::ensure;
 use anyhow::Context as _;
 use camino::Utf8PathBuf;
 use msys2::Msys2Environment;
@@ -29,6 +30,12 @@ pub struct Context {
 
     /// The target triple
     pub target: Option<String>,
+
+    /// Cargo metadata
+    pub cargo_metadata: cargo_metadata::Metadata,
+
+    /// The `bin` to build.
+    pub bin: Option<String>,
 }
 
 impl Context {
@@ -37,10 +44,19 @@ impl Context {
         let msys2_installation_path = msys2_packager::util::locate_msys2_installation()
             .context("failed to locate MSYS2 installation")?;
 
+        // This is required, as all current subcommands will need this data.
+        //
+        // If this changes in the future, make this optional.
+        let cargo_metadata = cargo_metadata::MetadataCommand::new()
+            .exec()
+            .context("failed to get cargo metadata")?;
+
         Ok(Self {
             msys2_installation_path,
             msys2_environment: None,
             target: None,
+            cargo_metadata,
+            bin: None,
         })
     }
 
@@ -58,18 +74,16 @@ impl Context {
         Ok(())
     }
 
-    /// Run a cargo build
-    pub fn run_cargo_build(
-        &self,
-        profile: &str,
-        bin: &str,
-        build: Option<&str>,
-    ) -> anyhow::Result<()> {
+    /// Run a cargo build.
+    ///
+    /// `bin` and `profile` are not validated before the command is invoked.
+    pub fn run_cargo_build(&self, profile: &str, build: Option<&str>) -> anyhow::Result<()> {
         let msys2_installation_path = &self.msys2_installation_path;
         let msys2_environment = self
             .msys2_environment
             .context("missing `msys2_environment`")?;
         let target = self.target.as_deref().context("missing `target`")?;
+        let bin = self.bin.as_deref().context("missing `bin`")?;
 
         let rel_prefix = msys2_environment.get_prefix().trim_start_matches('/');
         let env_sysroot = msys2_installation_path.join(rel_prefix);
@@ -106,6 +120,27 @@ impl Context {
                     .into(),
             )
             .exec()
+    }
+
+    /// Set the bin to build
+    pub fn set_bin(&mut self, bin: String) -> anyhow::Result<()> {
+        // Validate bin
+        let bin_is_valid = self
+            .cargo_metadata
+            .packages
+            .iter()
+            .flat_map(|package| {
+                package
+                    .targets
+                    .iter()
+                    .filter(|target| target.kind.iter().any(|kind| kind == "bin"))
+            })
+            .any(|target| target.name == bin);
+
+        ensure!(bin_is_valid, "`{}` is not a valid bin", bin);
+        self.bin = Some(bin);
+
+        Ok(())
     }
 }
 

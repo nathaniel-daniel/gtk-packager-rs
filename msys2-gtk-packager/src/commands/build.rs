@@ -31,7 +31,6 @@ pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
     ctx.run_cargo_build(
         options.profile.as_str(),
-        options.bin.as_str(),
         options.build_subcommand.as_deref(),
     )?;
     Ok(())

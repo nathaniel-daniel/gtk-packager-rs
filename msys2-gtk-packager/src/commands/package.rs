@@ -1,5 +1,4 @@
 use anyhow::bail;
-use anyhow::ensure;
 use anyhow::Context;
 use msys2_packager::packager::FileFlags;
 use msys2_packager::packager::Packager;
@@ -58,31 +57,19 @@ pub struct Options {
 /// Run the `package` subcommand.
 pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
+    ctx.set_bin(options.bin.clone())?;
 
-    let metadata = cargo_metadata::MetadataCommand::new()
-        .exec()
-        .context("failed to get cargo metadata")?;
-
-    // Validate `options.bin`
-    let bin_is_valid = metadata
-        .packages
-        .iter()
-        .flat_map(|package| {
-            package
-                .targets
-                .iter()
-                .filter(|target| target.kind.iter().any(|kind| kind == "bin"))
-        })
-        .any(|target| target.name == options.bin);
-    ensure!(bin_is_valid, "`{}` is not a valid bin", options.bin);
     let bin_name = format!("{}.exe", options.bin);
 
     if !options.no_build {
-        ctx.run_cargo_build(options.profile.as_str(), options.bin.as_str(), None)?;
+        ctx.run_cargo_build(options.profile.as_str(), None)?;
     }
 
     let profile = options.profile;
-    let profile_dir = metadata.target_directory.join(options.target.as_str());
+    let profile_dir = ctx
+        .cargo_metadata
+        .target_directory
+        .join(options.target.as_str());
     let bin_dir = profile_dir.join(profile);
 
     // TODO: autogenerate
