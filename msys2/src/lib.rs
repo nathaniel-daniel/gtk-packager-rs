@@ -38,7 +38,7 @@ pub enum Msys2Environment {
 impl Msys2Environment {
     /// Get the path prefix.
     ///
-    /// Note that this is an absolute path. 
+    /// Note that this is an absolute path.
     pub fn get_prefix(self) -> &'static str {
         match self {
             Self::Msys => "/usr",

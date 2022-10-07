@@ -17,11 +17,22 @@ pub struct Options {
 
     #[argh(option, long = "bin", description = "the binary name")]
     pub bin: String,
+
+    #[argh(
+        option,
+        long = "build-subcommand",
+        description = "the build subcommand to use in place of `build`, like `clippy`"
+    )]
+    pub build_subcommand: Option<String>,
 }
 
 /// Exec the `build` subcommand.
 pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
-    ctx.run_cargo_build(options.profile.as_str(), options.bin.as_str(), None)?;
+    ctx.run_cargo_build(
+        options.profile.as_str(),
+        options.bin.as_str(),
+        options.build_subcommand.as_deref(),
+    )?;
     Ok(())
 }

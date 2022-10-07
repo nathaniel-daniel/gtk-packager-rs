@@ -16,7 +16,6 @@ struct Options {
 #[argh(subcommand)]
 enum Subcommand {
     Build(crate::commands::build::Options),
-    Run(crate::commands::run::Options),
     Package(crate::commands::package::Options),
 }
 
@@ -117,9 +116,6 @@ fn main() -> anyhow::Result<()> {
     match options.subcommand {
         Subcommand::Build(options) => {
             crate::commands::build::exec(ctx, options)?;
-        }
-        Subcommand::Run(options) => {
-            crate::commands::run::exec(ctx, options)?;
         }
         Subcommand::Package(options) => {
             crate::commands::package::exec(ctx, options)?;
