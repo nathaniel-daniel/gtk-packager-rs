@@ -58,11 +58,10 @@ pub struct Options {
 pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
     ctx.set_bin(options.bin.clone())?;
-
-    let bin_name = format!("{}.exe", options.bin);
+    ctx.set_profile(options.profile.clone())?;
 
     if !options.no_build {
-        ctx.run_cargo_build(options.profile.as_str(), None)?;
+        ctx.run_cargo_build(None)?;
     }
 
     let profile = options.profile;
@@ -71,6 +70,7 @@ pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
         .target_directory
         .join(options.target.as_str());
     let bin_dir = profile_dir.join(profile);
+    let bin_name = format!("{}.exe", options.bin);
 
     // TODO: autogenerate
     let package_dir = profile_dir.join(env!("CARGO_CRATE_NAME")).join(options.bin);

@@ -34,6 +34,9 @@ pub struct Context {
     /// Cargo metadata
     pub cargo_metadata: cargo_metadata::Metadata,
 
+    /// The `profile` to build
+    pub profile: Option<String>,
+
     /// The `bin` to build.
     pub bin: Option<String>,
 }
@@ -56,6 +59,7 @@ impl Context {
             msys2_environment: None,
             target: None,
             cargo_metadata,
+            profile: None,
             bin: None,
         })
     }
@@ -76,13 +80,14 @@ impl Context {
 
     /// Run a cargo build.
     ///
-    /// `bin` and `profile` are not validated before the command is invoked.
-    pub fn run_cargo_build(&self, profile: &str, build: Option<&str>) -> anyhow::Result<()> {
+    /// `bin` is not validated before the command is invoked.
+    pub fn run_cargo_build(&self, build: Option<&str>) -> anyhow::Result<()> {
         let msys2_installation_path = &self.msys2_installation_path;
         let msys2_environment = self
             .msys2_environment
             .context("missing `msys2_environment`")?;
         let target = self.target.as_deref().context("missing `target`")?;
+        let profile = self.profile.as_deref().context("missing `profile`")?;
         let bin = self.bin.as_deref().context("missing `bin`")?;
 
         let rel_prefix = msys2_environment.get_prefix().trim_start_matches('/');
@@ -122,6 +127,14 @@ impl Context {
             .exec()
     }
 
+    /// Set the profile of the build.
+    ///
+    ///  Currently, this is not validated.
+    pub fn set_profile(&mut self, profile: String) -> anyhow::Result<()> {
+        self.profile = Some(profile);
+        Ok(())
+    }
+
     /// Set the bin to build
     pub fn set_bin(&mut self, bin: String) -> anyhow::Result<()> {
         // Validate bin
@@ -141,6 +154,12 @@ impl Context {
         self.bin = Some(bin);
 
         Ok(())
+    }
+
+    /// Get the out dir where package artifacts will be placed.
+    pub fn get_package_out_dir(&self) -> anyhow::Result<()> {
+        // let package_dir = profile_dir.join(env!("CARGO_CRATE_NAME")).join(options.bin);
+        todo!()
     }
 }
 

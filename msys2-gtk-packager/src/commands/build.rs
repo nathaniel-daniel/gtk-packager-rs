@@ -29,9 +29,9 @@ pub struct Options {
 /// Exec the `build` subcommand.
 pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.set_target(options.target.clone())?;
-    ctx.run_cargo_build(
-        options.profile.as_str(),
-        options.build_subcommand.as_deref(),
-    )?;
+    ctx.set_bin(options.bin.clone())?;
+    ctx.set_profile(options.profile.clone())?;
+
+    ctx.run_cargo_build(options.build_subcommand.as_deref())?;
     Ok(())
 }
