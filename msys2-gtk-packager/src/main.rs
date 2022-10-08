@@ -100,18 +100,6 @@ impl Context {
                     .join("pkg-config")
                     .into(),
             )
-            // TODO: If the user specifies RUSTFLAGS, extend it. If they specify a linker, noop here. Make this work for cross-comp.
-            .env(
-                "RUSTFLAGS".into(),
-                format!(
-                    "-C linker={}",
-                    msys2_installation_path
-                        .join(&env_sysroot)
-                        .join("bin")
-                        .join("gcc")
-                )
-                .into(),
-            )
             .env(
                 // TODO: Consider ripping out pkg-config and locating all these libs manually so users can use pkg-config for other stuff, or extend those env vars.
                 "PKG_CONFIG_SYSROOT_DIR".into(),
