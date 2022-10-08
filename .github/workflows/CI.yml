@@ -7,6 +7,23 @@ on:
     branches: ["master"]
 
 jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+    
   build-windows:
     runs-on: windows-latest
     steps:
@@ -25,9 +42,6 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
-        
-      - name: Clippy
-        run: cargo clippy -- -D warnings
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
