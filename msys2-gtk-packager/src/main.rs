@@ -93,18 +93,7 @@ impl Context {
             .profile(profile.into())
             .bin(bin.into())
             .env(
-                "PATH".into(), // We force MSYS2's pkg-config
-                std::env::join_paths(
-                    std::iter::once(
-                        msys2_installation_path
-                            .join(&env_sysroot)
-                            .join("bin")
-                            .into(),
-                    )
-                    .chain(std::env::var_os("PATH").into_iter()),
-                )?,
-            )
-            .env(
+                // TODO: Consider ripping out pkg-config and locating all these libs manually so users can use pkg-config for other stuff, or extend those env vars.
                 "PKG_CONFIG_SYSROOT_DIR".into(),
                 msys2_installation_path.into(),
             )
