@@ -31,6 +31,13 @@ pub struct Options {
 
     #[argh(
         option,
+        long = "extra-library",
+        description = "the name of an extra library to package"
+    )]
+    pub extra_libraries: Vec<String>,
+
+    #[argh(
+        option,
         short = 't',
         long = "theme",
         description = "the path to a theme to package"
@@ -62,7 +69,7 @@ pub fn exec(mut ctx: crate::Context, options: Options) -> anyhow::Result<()> {
     ctx.run_cargo_build(options.build_subcommand.as_deref())?;
 
     if !options.skip_package {
-        ctx.package(false, &[], &options.themes)?;
+        ctx.package(false, &options.extra_libraries, &options.themes)?;
     }
 
     if options.run {
