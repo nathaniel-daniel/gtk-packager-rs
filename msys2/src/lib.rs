@@ -37,6 +37,8 @@ pub enum Msys2Environment {
 
 impl Msys2Environment {
     /// Get the path prefix.
+    ///
+    /// Note that this is an absolute path.
     pub fn get_prefix(self) -> &'static str {
         match self {
             Self::Msys => "/usr",
@@ -49,7 +51,7 @@ impl Msys2Environment {
         }
     }
 
-    /// Get the arch of the environment
+    /// Get the arch of the environment.
     pub fn get_arch(self) -> Msys2Arch {
         match self {
             Self::Msys | Self::Mingw64 | Self::Ucrt64 | Self::Clang64 => Msys2Arch::X86_64,
