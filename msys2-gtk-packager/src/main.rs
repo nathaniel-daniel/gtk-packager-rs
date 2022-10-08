@@ -93,14 +93,6 @@ impl Context {
             .profile(profile.into())
             .bin(bin.into())
             .env(
-                "PKG_CONFIG".into(),
-                msys2_installation_path // We force MSYS2's pkg-config. TODO: Make this work for cross-comp.
-                    .join(&env_sysroot)
-                    .join("bin")
-                    .join("pkg-config")
-                    .into(),
-            )
-            .env(
                 // TODO: Consider ripping out pkg-config and locating all these libs manually so users can use pkg-config for other stuff, or extend those env vars.
                 "PKG_CONFIG_SYSROOT_DIR".into(),
                 msys2_installation_path.into(),
