@@ -78,15 +78,15 @@ impl CargoBuild {
         command.arg(build.unwrap_or("build")).envs(envs);
 
         if let Some(target) = target {
-            command.args(&["--target", target]);
+            command.args(["--target", target]);
         }
 
         if let Some(profile) = profile {
-            command.args(&["--profile", profile]);
+            command.args(["--profile", profile]);
         }
 
         if let Some(bin) = bin {
-            command.args(&["--bin", bin]);
+            command.args(["--bin", bin]);
         }
 
         Ok(command)

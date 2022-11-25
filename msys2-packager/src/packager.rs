@@ -280,7 +280,7 @@ impl Packager {
                 }
 
                 // Perform copy
-                std::fs::copy(&file_src, &dest).with_context(|| {
+                std::fs::copy(file_src, &dest).with_context(|| {
                     format!(
                         "failed to copy `{}` to `{}`",
                         file_src.display(),
