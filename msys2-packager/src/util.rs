@@ -124,7 +124,7 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
-    let bytes = std::fs::read(&path).context("failed to read file")?;
+    let bytes = std::fs::read(path).context("failed to read file")?;
     let pe = goblin::pe::PE::parse(&bytes).context("failed to parse pe file")?;
 
     Ok(pe.libraries.iter().map(|name| name.to_string()).collect())

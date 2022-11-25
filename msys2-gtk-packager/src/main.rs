@@ -153,7 +153,7 @@ impl Context {
         }
 
         let mut path = self.cargo_metadata.target_directory.clone();
-        path.extend(&[
+        path.extend([
             build_data.target.as_str(),
             profile,
             build_data.get_bin_name().as_str(),
@@ -376,7 +376,7 @@ impl Context {
             std::fs::create_dir(&gtk).context("failed to create gtk dir")?;
 
             let mut file =
-                File::create(&gtk.join("settings.ini")).context("failed to open settings.ini")?;
+                File::create(gtk.join("settings.ini")).context("failed to open settings.ini")?;
             // TODO: Allow customization
             file.write_all(b"[Settings]\ngtk-theme-name=Dracula\n")
                 .context("failed to write out settings.ini")?;
