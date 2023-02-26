@@ -176,8 +176,8 @@ impl Packager {
 
                 let src = self
                     .lookup_msys2_file(name)
-                    .with_context(|| format!("failed to locate {:?}", name))?
-                    .with_context(|| format!("missing {:?}", name))?;
+                    .with_context(|| format!("failed to locate {name:?}"))?
+                    .with_context(|| format!("missing {name:?}"))?;
 
                 eprintln!("Resolved `{}` to `{}`", file.dest.display(), src.display());
                 self.files[i].src = Some(src);

@@ -115,7 +115,7 @@ impl Context {
     pub fn set_build_data(&mut self, target: &str, profile: &str, bin: &str) -> anyhow::Result<()> {
         let msys2_environment = msys2_packager::util::target_triple_to_msys2_environment(target)
             .with_context(|| {
-                format!("failed to translate `{}` into a MSYS2 environment", target)
+                format!("failed to translate `{target}` into a MSYS2 environment")
             })?;
 
         // Validate bin
