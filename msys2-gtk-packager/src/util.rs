@@ -97,13 +97,11 @@ impl CargoBuild {
         let mut command = self.build_command()?;
         let status = command
             .status()
-            .with_context(|| format!("failed to run `{:?}`", command))?;
+            .with_context(|| format!("failed to run `{command:?}`"))?;
 
         ensure!(
             status.success(),
-            "`{:?}` exited with nonzero exit code `{}`",
-            command,
-            status,
+            "`{command:?}` exited with nonzero exit code `{status}`",
         );
 
         Ok(())
