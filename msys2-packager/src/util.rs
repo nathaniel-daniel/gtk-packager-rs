@@ -115,6 +115,7 @@ pub fn is_system_dll(name: &str) -> bool {
             | "uxtheme"
             | "mpr"
             | "netapi32"
+            | "dwrite"
     )
 }
 
