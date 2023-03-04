@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.69"
-argh = "0.1.9"
+argh = "0.1.10"
 camino = "1.1.2"
 cargo_metadata = "0.15.3"
 msys2 = { path = "../msys2" }
