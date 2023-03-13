@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.69"
 argh = "0.1.10"
-camino = "1.1.2"
+camino = "1.1.4"
 cargo_metadata = "0.15.3"
 msys2 = { path = "../msys2" }
 msys2-packager = { path = "../msys2-packager" }
