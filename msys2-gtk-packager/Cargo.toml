@@ -10,4 +10,4 @@ camino = "1.1.2"
 cargo_metadata = "0.15.3"
 msys2 = { path = "../msys2" }
 msys2-packager = { path = "../msys2-packager" }
-walkdir = "2.3.2"
+walkdir = "2.3.3"
