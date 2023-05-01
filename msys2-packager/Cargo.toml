@@ -9,7 +9,7 @@ path = "src/main.rs"
 required-features = [ "cli" ]
 
 [dependencies]
-anyhow = "1.0.69"
+anyhow = "1.0.71"
 argh = { version = "0.1.10", optional = true }
 bitflags = "1.3.2"
 camino = "1.1.2"
